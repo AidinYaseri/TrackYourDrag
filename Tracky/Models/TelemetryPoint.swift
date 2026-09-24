@@ -91,4 +91,21 @@ extension Array where Element == TelemetryPoint {
         }
         return last.speed
     }
+
+    /// Evenly thins a series down to at most `limit` points.
+    ///
+    /// A 20 second run recorded at motion rate is around a thousand points,
+    /// which a line chart cannot show any detail from anyway. Keeping the first
+    /// and last point means the start line and the finish line never move.
+    func downsampled(to limit: Int) -> [TelemetryPoint] {
+        guard limit > 2, count > limit else { return self }
+        let step = Double(count - 1) / Double(limit - 1)
+        var result: [TelemetryPoint] = []
+        result.reserveCapacity(limit)
+        for index in 0..<limit {
+            let position = Int((Double(index) * step).rounded())
+            result.append(self[Swift.min(position, count - 1)])
+        }
+        return result
+    }
 }
