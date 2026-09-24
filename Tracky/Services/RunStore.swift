@@ -184,3 +184,31 @@ final class RunStore {
         }
     }
 }
+
+extension PerformanceResult {
+    /// Lets an unsaved result be compared against saved history, which is how a
+    /// personal best can be flagged on the result screen before the run is even
+    /// saved.
+    func makeSummary(category: RunModeCategory, vehicle: Vehicle?) -> RunSummary {
+        RunSummary(
+            id: id,
+            date: date,
+            modeID: modeID,
+            modeTitle: modeTitle,
+            category: category,
+            duration: duration,
+            distance: distance,
+            startSpeed: startSpeed,
+            endSpeed: endSpeed,
+            maxSpeed: maxSpeed,
+            maxAccelerationG: maxAccelerationG,
+            maxBrakingG: maxBrakingG,
+            maxLateralG: maxLateralG,
+            elevationChange: elevation.change,
+            quality: quality,
+            isValid: isValid,
+            vehicleID: vehicle?.id,
+            vehicleName: vehicle?.name
+        )
+    }
+}
