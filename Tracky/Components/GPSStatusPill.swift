@@ -1,15 +1,21 @@
 import SwiftUI
 
 /// Compact signal indicator for the top of the Drive screen.
+///
+/// The nested type is called `Status` rather than `State` on purpose: a nested
+/// `State` would shadow SwiftUI's property wrapper inside this view.
 struct GPSStatusPill: View {
-    enum State: Equatable {
+
+    enum Status: Equatable {
         case notAuthorized
         case searching
         case ready(accuracy: Double, quality: GPSQuality)
         case simulated
     }
 
-    let state: State
+    let status: Status
+
+    @State private var isPulsing = false
 
     var body: some View {
         HStack(spacing: 7) {
@@ -18,15 +24,9 @@ struct GPSStatusPill: View {
                 .frame(width: 7, height: 7)
                 .overlay(
                     Circle()
-                        .stroke(tint.opacity(0.35), lineWidth: 5)
-                        .scaleEffect(isPulsing ? 1.7 : 1)
+                        .stroke(tint.opacity(0.4), lineWidth: 4)
+                        .scaleEffect(isPulsing ? 2.1 : 1)
                         .opacity(isPulsing ? 0 : 1)
-                        .animation(
-                            isPulsing
-                                ? .easeOut(duration: 1.3).repeatForever(autoreverses: false)
-                                : .default,
-                            value: isPulsing
-                        )
                 )
             Text(title)
                 .font(Theme.Typeface.label(11))
@@ -39,15 +39,24 @@ struct GPSStatusPill: View {
             Capsule().fill(Theme.Palette.surface)
                 .overlay(Capsule().strokeBorder(Theme.Palette.stroke, lineWidth: 1))
         )
+        .animation(
+            .easeOut(duration: 1.3).repeatForever(autoreverses: false),
+            value: isPulsing
+        )
+        .onAppear { isPulsing = shouldPulse }
+        .onChange(of: shouldPulse) { _, newValue in
+            isPulsing = newValue
+        }
     }
 
-    private var isPulsing: Bool {
-        if case .searching = state { return true }
+    /// Only the searching state animates; a steady signal should be steady.
+    private var shouldPulse: Bool {
+        if case .searching = status { return true }
         return false
     }
 
     private var title: String {
-        switch state {
+        switch status {
         case .notAuthorized: return "Location access needed"
         case .searching: return "Searching for GPS"
         case .simulated: return "Simulated data"
@@ -57,7 +66,7 @@ struct GPSStatusPill: View {
     }
 
     private var tint: Color {
-        switch state {
+        switch status {
         case .notAuthorized: return Theme.Palette.danger
         case .searching: return Theme.Palette.warning
         case .simulated: return Theme.Palette.accentAlt
@@ -70,11 +79,11 @@ struct GPSStatusPill: View {
     ZStack {
         ScreenBackground()
         VStack(spacing: 10) {
-            GPSStatusPill(state: .searching)
-            GPSStatusPill(state: .ready(accuracy: 2.1, quality: .excellent))
-            GPSStatusPill(state: .ready(accuracy: 18, quality: .fair))
-            GPSStatusPill(state: .simulated)
-            GPSStatusPill(state: .notAuthorized)
+            GPSStatusPill(status: .searching)
+            GPSStatusPill(status: .ready(accuracy: 2.1, quality: .excellent))
+            GPSStatusPill(status: .ready(accuracy: 18, quality: .fair))
+            GPSStatusPill(status: .simulated)
+            GPSStatusPill(status: .notAuthorized)
         }
     }
 }

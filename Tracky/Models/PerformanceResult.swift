@@ -105,4 +105,9 @@ struct PerformanceResult: Codable, Hashable, Identifiable {
         if case .distance = target { return endSpeed }
         return nil
     }
+
+    var isDistanceTarget: Bool {
+        if case .distance = target { return true }
+        return false
+    }
 }

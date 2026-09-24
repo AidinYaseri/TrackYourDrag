@@ -4,6 +4,7 @@ import Foundation
 struct PersonalBest: Identifiable, Hashable {
     var modeID: String
     var modeTitle: String
+    var isDistanceRun: Bool
     var duration: TimeInterval
     var runID: UUID
     var date: Date
@@ -64,6 +65,7 @@ enum PersonalBestCalculator {
                 PersonalBest(
                     modeID: modeID,
                     modeTitle: fastest.modeTitle,
+                    isDistanceRun: fastest.isDistanceRun,
                     duration: fastest.duration,
                     runID: fastest.id,
                     date: fastest.date,

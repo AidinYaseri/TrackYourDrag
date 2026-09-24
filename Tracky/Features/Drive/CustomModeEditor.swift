@@ -168,7 +168,9 @@ struct CustomModeEditor: View {
                   value > 0 else { return nil }
             let meters = distanceUnit.meters(from: value)
             guard meters >= 20, meters <= 20_000 else { return nil }
-            let label = "\(Format.grouped(value)) \(distanceUnit.title)"
+            let label = value == value.rounded()
+                ? "\(Int(value)) \(distanceUnit.title)"
+                : String(format: "%.2f %@", value, distanceUnit.title)
             return .distance(
                 meters: meters,
                 id: "custom-dist-\(Int(meters.rounded()))",

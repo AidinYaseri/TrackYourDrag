@@ -10,6 +10,10 @@ struct RunSummary: Identifiable, Hashable {
     var modeID: String
     var modeTitle: String
     var category: RunModeCategory
+    /// True for runs measuring a distance rather than a speed interval. Kept on
+    /// the summary so statistics can group them without reaching back into the
+    /// stored run.
+    var isDistanceRun: Bool
     var duration: TimeInterval
     var distance: Double
     var startSpeed: Double

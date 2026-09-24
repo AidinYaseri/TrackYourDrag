@@ -100,12 +100,12 @@ struct DriveView: View {
         HStack {
             TrackyWordmark(size: 19)
             Spacer()
-            GPSStatusPill(state: gpsState)
+            GPSStatusPill(status: gpsStatus)
         }
         .padding(.top, 4)
     }
 
-    private var gpsState: GPSStatusPill.State {
+    private var gpsStatus: GPSStatusPill.Status {
         if manager.isSimulated { return .simulated }
         switch manager.authorization {
         case .notDetermined, .denied:

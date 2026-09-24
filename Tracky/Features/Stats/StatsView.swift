@@ -145,13 +145,11 @@ struct StatsView: View {
     }
 
     private var accelerationBests: [PersonalBest] {
-        let distanceIDs = Set(RunMode.distancePresets.map(\.id))
-        return stats.bests.filter { !distanceIDs.contains($0.modeID) && !$0.modeID.hasPrefix("dist") }
+        stats.bests.filter { !$0.isDistanceRun }
     }
 
     private var distanceBests: [PersonalBest] {
-        let distanceIDs = Set(RunMode.distancePresets.map(\.id))
-        return stats.bests.filter { distanceIDs.contains($0.modeID) || $0.modeID.hasPrefix("dist") }
+        stats.bests.filter(\.isDistanceRun)
     }
 
     private func detailText(for best: PersonalBest) -> String? {
