@@ -9,6 +9,7 @@ struct SettingsView: View {
     @Query private var runs: [Run]
 
     @State private var confirmation: DestructiveAction?
+    @State private var share: SharePayload?
 
     enum DestructiveAction: String, Identifiable {
         case deleteRuns
@@ -75,6 +76,9 @@ struct SettingsView: View {
                 Button("Cancel", role: .cancel) {}
             } message: { action in
                 Text(action.message)
+            }
+            .sheet(item: $share) { payload in
+                ShareSheet(payload: payload)
             }
         }
     }
@@ -308,6 +312,38 @@ struct SettingsView: View {
                         set: { settings.storeRouteData = $0 }
                     )
                 )
+
+                Divider().overlay(Theme.Palette.stroke)
+
+                Button {
+                    Haptics.fire(.light)
+                    if let url = ExportService.summaryFile(
+                        for: runs,
+                        speedUnit: settings.speedUnit,
+                        distanceUnit: settings.distanceUnit
+                    ) {
+                        share = SharePayload(items: [url])
+                    }
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Theme.Palette.accent)
+                            .frame(width: 24)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Export runs (CSV)")
+                                .font(Theme.Typeface.body(15))
+                                .foregroundStyle(Theme.Palette.textPrimary)
+                            Text("One row per run. Per-run telemetry is exported from the run itself.")
+                                .font(Theme.Typeface.body(12))
+                                .foregroundStyle(Theme.Palette.textTertiary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .frame(minHeight: Theme.Metrics.touchTarget)
+                }
+                .disabled(runs.isEmpty)
 
                 Divider().overlay(Theme.Palette.stroke)
 

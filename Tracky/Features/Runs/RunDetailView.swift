@@ -12,6 +12,7 @@ struct RunDetailView: View {
 
     @State private var chartKind: TelemetryChartKind = .speedOverTime
     @State private var showsDeleteConfirmation = false
+    @State private var share: SharePayload?
 
     private var telemetry: [TelemetryPoint] { run.telemetry }
 
@@ -27,6 +28,7 @@ struct RunDetailView: View {
                     elevationCard
                     if run.hasRoute { mapCard }
                     qualityCard
+                    exportCard
                     dangerZone
                 }
                 .padding(Theme.Metrics.screenPadding)
@@ -44,6 +46,85 @@ struct RunDetailView: View {
                 dismiss()
             }
             Button("Cancel", role: .cancel) {}
+        }
+        .sheet(item: $share) { payload in
+            ShareSheet(payload: payload)
+        }
+    }
+
+    // MARK: - Export
+
+    private var exportCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeader(title: "Export")
+            GlassCard {
+                VStack(spacing: 0) {
+                    exportRow(
+                        title: "Share summary card",
+                        detail: "A single image with the result, the speed trace and the headline numbers",
+                        symbol: "square.and.arrow.up"
+                    ) {
+                        var items: [Any] = []
+                        if let image = ExportService.shareCardImage(
+                            for: run,
+                            speedUnit: settings.speedUnit,
+                            distanceUnit: settings.distanceUnit
+                        ) {
+                            items.append(image)
+                        }
+                        items.append("Tracky · \(run.modeTitle) in \(Format.time(run.duration)) s")
+                        share = SharePayload(items: items)
+                    }
+
+                    Divider().overlay(Theme.Palette.stroke)
+
+                    exportRow(
+                        title: "Export telemetry (CSV)",
+                        detail: run.storesRoute
+                            ? "Every sample, including coordinates"
+                            : "Every sample. This run has no location data.",
+                        symbol: "tablecells"
+                    ) {
+                        if let url = ExportService.telemetryFile(
+                            for: run,
+                            speedUnit: settings.speedUnit,
+                            distanceUnit: settings.distanceUnit
+                        ) {
+                            share = SharePayload(items: [url])
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func exportRow(
+        title: String,
+        detail: String,
+        symbol: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button {
+            Haptics.fire(.light)
+            action()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: symbol)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Theme.Palette.accent)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(Theme.Typeface.body(15))
+                        .foregroundStyle(Theme.Palette.textPrimary)
+                    Text(detail)
+                        .font(Theme.Typeface.body(12))
+                        .foregroundStyle(Theme.Palette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(minHeight: Theme.Metrics.touchTarget)
         }
     }
 
