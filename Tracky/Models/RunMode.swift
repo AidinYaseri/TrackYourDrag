@@ -44,6 +44,12 @@ struct RunMode: Identifiable, Codable, Hashable {
     var category: RunModeCategory
     var target: RunTarget
     var isCustom: Bool
+    /// Which unit the mode was defined in. Used to pick sensible intermediate
+    /// splits (a 0–200 km/h run splits at 60/100/150 km/h, a 0–100 mph run at
+    /// 30/60 mph) and to label the run the way the driver asked for it, even if
+    /// the app is currently showing the other unit. Optional so older stored
+    /// custom modes still decode.
+    var speedUnitHint: SpeedUnit?
 
     init(
         id: String,
@@ -51,7 +57,8 @@ struct RunMode: Identifiable, Codable, Hashable {
         shortTitle: String,
         category: RunModeCategory,
         target: RunTarget,
-        isCustom: Bool = false
+        isCustom: Bool = false,
+        speedUnitHint: SpeedUnit? = nil
     ) {
         self.id = id
         self.title = title
@@ -59,6 +66,7 @@ struct RunMode: Identifiable, Codable, Hashable {
         self.category = category
         self.target = target
         self.isCustom = isCustom
+        self.speedUnitHint = speedUnitHint
     }
 
     /// True when the car has to be stopped before the run can begin.
@@ -92,7 +100,8 @@ struct RunMode: Identifiable, Codable, Hashable {
             shortTitle: "\(Self.trim(fromKmh))–\(Self.trim(toKmh))",
             category: isCustom ? .custom : .acceleration,
             target: .speed(from: from, to: to),
-            isCustom: isCustom
+            isCustom: isCustom,
+            speedUnitHint: .kmh
         )
     }
 
@@ -105,7 +114,8 @@ struct RunMode: Identifiable, Codable, Hashable {
             shortTitle: "\(Self.trim(fromMph))–\(Self.trim(toMph))",
             category: isCustom ? .custom : .acceleration,
             target: .speed(from: from, to: to),
-            isCustom: isCustom
+            isCustom: isCustom,
+            speedUnitHint: .mph
         )
     }
 
@@ -123,7 +133,8 @@ struct RunMode: Identifiable, Codable, Hashable {
             shortTitle: shortTitle ?? resolvedTitle,
             category: isCustom ? .custom : .distance,
             target: .distance(meters: meters),
-            isCustom: isCustom
+            isCustom: isCustom,
+            speedUnitHint: nil
         )
     }
 
