@@ -182,18 +182,29 @@ final class TelemetryProcessor {
         }
         lastRejection = nil
 
-        // Acceleration straight off the GPS speed trace. Used as a cross-check
-        // and as the longitudinal source when device motion is unavailable.
+        // Advance the filter to this fix before folding the fix in, carrying
+        // the previous interval's acceleration forward. Predicting with zero
+        // acceleration would make the estimate lag behind a car that is still
+        // pulling — about 0.8 m/s behind at 0.4 G with no motion data, which is
+        // a sixth of a second of error at the 100 km/h mark.
+        //
+        // When device motion is available the motion updates have already
+        // advanced the filter, so this residual step covers only the few
+        // milliseconds since the last one.
+        let predictDelta = lastPredictTime.map { t - $0 } ?? 0
+        if predictDelta > 0 {
+            speedFilter.predict(dt: predictDelta, acceleration: lastGPSAcceleration)
+        }
+
+        // Acceleration straight off the GPS speed trace. Used to drive the next
+        // prediction, as a cross-check, and as the longitudinal source when
+        // device motion is unavailable.
         if let previousSpeed = lastRawSpeed, let previousTime = lastRawSpeedTime, t > previousTime {
             lastGPSAcceleration = (rawSpeed - previousSpeed) / (t - previousTime)
         }
         lastRawSpeed = rawSpeed
         lastRawSpeedTime = t
 
-        let predictDelta = lastPredictTime.map { t - $0 } ?? 0
-        if predictDelta > 0 {
-            speedFilter.predict(dt: predictDelta, acceleration: 0)
-        }
         speedFilter.update(measurement: rawSpeed, accuracy: location.speedAccuracy)
         lastPredictTime = t
 

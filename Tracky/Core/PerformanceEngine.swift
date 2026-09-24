@@ -134,8 +134,9 @@ final class PerformanceEngine {
     private var lastEvaluated: TelemetrySample?
 
     private var sawStationary = false
-    /// Last sample below the launch threshold.
-    private var preLaunchSample: TelemetrySample?
+    /// Last sample where the car was genuinely stopped. The back-projected
+    /// launch instant can never be earlier than this.
+    private var lastStationarySample: TelemetrySample?
     /// First sample above the launch threshold.
     private var firstMovingSample: TelemetrySample?
 
@@ -175,7 +176,7 @@ final class PerformanceEngine {
         buffer.removeAll(keepingCapacity: true)
         lastEvaluated = nil
         sawStationary = false
-        preLaunchSample = nil
+        lastStationarySample = nil
         firstMovingSample = nil
         launchTime = nil
         launchDistance = 0
@@ -279,7 +280,7 @@ final class PerformanceEngine {
     private func detectStart(_ sample: TelemetrySample) -> [Event] {
         if sample.speed <= configuration.stationarySpeed {
             sawStationary = true
-            preLaunchSample = sample
+            lastStationarySample = sample
             firstMovingSample = nil
             return []
         }
@@ -296,14 +297,10 @@ final class PerformanceEngine {
     /// speed line back to zero to find the instant the car left the line.
     private func detectStandingStart(_ sample: TelemetrySample) -> [Event] {
         if configuration.requireStationaryBeforeLaunch && !sawStationary {
-            preLaunchSample = sample
             return []
         }
 
-        guard sample.speed > configuration.launchSpeedThreshold else {
-            preLaunchSample = sample
-            return []
-        }
+        guard sample.speed > configuration.launchSpeedThreshold else { return [] }
 
         guard let first = firstMovingSample else {
             firstMovingSample = sample
@@ -315,28 +312,32 @@ final class PerformanceEngine {
         let acceleration = (sample.speed - first.speed) / dt
 
         // Moving but not really launching (rolling in traffic, GPS drift):
-        // drop the candidate and keep waiting.
+        // slide the window along and keep waiting.
         guard acceleration >= configuration.launchAcceleration else {
-            if sample.speed <= configuration.launchSpeedThreshold {
-                firstMovingSample = nil
-                preLaunchSample = sample
-            } else {
-                firstMovingSample = sample
-            }
+            firstMovingSample = sample
             return []
         }
 
-        // Back-extrapolate to v = 0.
+        // Project the speed line back to zero. The car left the line somewhere
+        // between the last stationary fix and the first moving one, and this
+        // estimates where.
         var t0 = first.t - first.speed / acceleration
         var d0 = first.distance - first.speed * first.speed / (2 * acceleration)
 
-        // The launch cannot be earlier than the last stationary fix or later
-        // than the first moving one.
-        if let previous = preLaunchSample {
-            t0 = min(max(t0, previous.t), first.t)
-            d0 = min(max(d0, previous.distance), first.distance)
+        // Sanity bounds. The launch cannot be later than the first sample that
+        // was clearly moving. The earliest it can be is where the same
+        // acceleration puts the last near-stationary sample at zero speed:
+        // that sample may itself already have been rolling at a km/h or two,
+        // so clamping to its raw timestamp would throw away real time.
+        let upperBound = first.t
+        if let stationary = lastStationarySample {
+            let lowerTime = stationary.t - stationary.speed / acceleration
+            let lowerDistance = stationary.distance
+                - stationary.speed * stationary.speed / (2 * acceleration)
+            t0 = min(max(t0, lowerTime), upperBound)
+            d0 = min(max(d0, lowerDistance), first.distance)
         } else {
-            t0 = min(t0, first.t)
+            t0 = min(t0, upperBound)
             d0 = min(d0, first.distance)
         }
 
