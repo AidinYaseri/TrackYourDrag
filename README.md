@@ -147,9 +147,12 @@ Settings on a real device.
 ## Building
 
 Open `Tracky.xcodeproj` and run the `Tracky` scheme on an iOS 17 simulator or
-device. There are no dependencies to fetch. The project uses Xcode 16
-file-system synchronised groups, so new files in `Tracky/` and `TrackyTests/`
-are picked up without editing the project.
+device. There are no dependencies to fetch.
+
+Xcode 16 or later is required: the project uses file-system synchronised
+groups, so new files under `Tracky/` and `TrackyTests/` are picked up without
+anyone editing the project file. (On an older Xcode, regenerate the project
+from `project.yml` instead.)
 
 `project.yml` is an optional [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 spec if you would rather regenerate the project from scratch.
