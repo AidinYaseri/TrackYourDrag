@@ -160,8 +160,13 @@ spec if you would rather regenerate the project from scratch.
 ## Tests
 
 ```
-xcodebuild test -scheme Tracky -destination 'platform=iOS Simulator,name=iPhone 15'
+xcodebuild test -scheme Tracky -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
+
+CI runs the build and the test suite on every pull request
+(`.github/workflows/ci.yml`). It picks whichever iPhone simulator the runner
+actually has rather than hard-coding one, and a second job re-runs the icon
+generator and checks its output is still a 1024px icon with no alpha channel.
 
 The suite covers interpolation and threshold crossings, the engine against
 constant-acceleration physics (0–100 km/h, quarter mile, trap speed, rolling
