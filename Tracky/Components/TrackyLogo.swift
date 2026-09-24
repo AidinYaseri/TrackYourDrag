@@ -1,36 +1,32 @@
 import SwiftUI
 
 /// The Tracky mark: a speedometer sweep wrapped around a "T" whose stem leans
-/// like a racing line, with the needle tip doubling as a location pin dot.
+/// like a racing line and runs out through the open bottom of the gauge.
 ///
-/// Drawn with shapes rather than an image so it scales to any size and is used
-/// for the app icon, the wordmark and the share card.
+/// Drawn with shapes rather than an image so it scales to any size, and shared
+/// by the app icon, the wordmark and the share card.
 struct TrackyMark: View {
-    var lineWidthRatio: CGFloat = 0.085
+    /// Stroke width of the sweep, as a fraction of the mark's side.
+    var lineWidthRatio: CGFloat = 0.092
     var tint: LinearGradient = Theme.Gradients.accent
 
     var body: some View {
         GeometryReader { proxy in
             let side = min(proxy.size.width, proxy.size.height)
-            let stroke = side * lineWidthRatio
 
             ZStack {
-                // Speedometer sweep, open at the bottom.
+                // 270 degrees of speedometer sweep, open at the bottom. The
+                // trim starts at 3 o'clock, so rotating by 135 degrees puts the
+                // opening symmetrically below the mark.
                 Circle()
-                    .trim(from: 0.07, to: 0.43)
-                    .rotation(.degrees(126))
-                    .stroke(tint, style: StrokeStyle(lineWidth: stroke, lineCap: .round))
+                    .trim(from: 0, to: 0.75)
+                    .rotation(.degrees(135))
+                    .stroke(tint, style: StrokeStyle(lineWidth: side * lineWidthRatio, lineCap: .round))
                     .frame(width: side * 0.92, height: side * 0.92)
-
-                // Needle dot at the top of the sweep.
-                Circle()
-                    .fill(tint)
-                    .frame(width: stroke * 1.15, height: stroke * 1.15)
-                    .offset(x: side * 0.33, y: -side * 0.20)
 
                 TrackyTShape()
                     .fill(tint)
-                    .frame(width: side * 0.62, height: side * 0.62)
+                    .frame(width: side, height: side)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
@@ -38,25 +34,32 @@ struct TrackyMark: View {
     }
 }
 
-/// The "T". The crossbar is level; the stem leans right so the whole letter
-/// reads as a line through a corner.
+/// The "T". The crossbar is level; the stem leans right and runs out through
+/// the open bottom of the sweep, so the letter reads as a line taken through a
+/// corner. Proportions match `Tools/generate_app_icon.py` exactly, so the app
+/// icon and the in-app mark are the same drawing.
 struct TrackyTShape: Shape {
     func path(in rect: CGRect) -> Path {
         let width = rect.width
         let height = rect.height
+        let originX = rect.minX
+        let originY = rect.minY
         var path = Path()
 
-        // Crossbar.
         path.addRoundedRect(
-            in: CGRect(x: width * 0.10, y: height * 0.18, width: width * 0.80, height: height * 0.175),
-            cornerSize: CGSize(width: width * 0.06, height: width * 0.06)
+            in: CGRect(
+                x: originX + width * 0.225,
+                y: originY + height * 0.235,
+                width: width * 0.550,
+                height: height * 0.120
+            ),
+            cornerSize: CGSize(width: width * 0.030, height: width * 0.030)
         )
 
-        // Slanted stem.
-        path.move(to: CGPoint(x: width * 0.40, y: height * 0.33))
-        path.addLine(to: CGPoint(x: width * 0.585, y: height * 0.33))
-        path.addLine(to: CGPoint(x: width * 0.66, y: height * 0.90))
-        path.addLine(to: CGPoint(x: width * 0.475, y: height * 0.90))
+        path.move(to: CGPoint(x: originX + width * 0.443, y: originY + height * 0.355))
+        path.addLine(to: CGPoint(x: originX + width * 0.557, y: originY + height * 0.355))
+        path.addLine(to: CGPoint(x: originX + width * 0.645, y: originY + height * 1.000))
+        path.addLine(to: CGPoint(x: originX + width * 0.530, y: originY + height * 1.000))
         path.closeSubpath()
 
         return path
