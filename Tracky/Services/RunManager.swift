@@ -55,11 +55,18 @@ final class RunManager {
     /// Short-lived message shown on the dashboard (aborts, signal problems).
     private(set) var statusMessage: String?
 
+    /// `@Observable` rewrites stored properties as computed ones, so a `didSet`
+    /// is not available here. The tracked storage sits behind a computed
+    /// property that also pushes the change into the engine and settings.
+    private var storedSelectedMode: RunMode
     var selectedMode: RunMode {
-        didSet {
-            settings.selectedModeID = selectedMode.id
-            engine.update(mode: selectedMode)
-            engine.update(configuration: settings.engineConfiguration(for: selectedMode))
+        get { storedSelectedMode }
+        set {
+            storedSelectedMode = newValue
+            settings.selectedModeID = newValue.id
+            engine.update(mode: newValue)
+            engine.update(configuration: settings.engineConfiguration(for: newValue))
+            // Changing mode mid-wait should leave the driver armed and ready.
             if stage == .armed { arm() }
         }
     }
@@ -85,7 +92,7 @@ final class RunManager {
         self.source = source ?? RunManager.makeSource(settings: settings)
         self.processor = TelemetryProcessor(configuration: settings.processorConfiguration)
         let mode = settings.selectedMode
-        self.selectedMode = mode
+        self.storedSelectedMode = mode
         self.engine = PerformanceEngine(
             mode: mode,
             configuration: settings.engineConfiguration(for: mode)

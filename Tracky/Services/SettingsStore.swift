@@ -99,75 +99,196 @@ final class SettingsStore {
 
     @ObservationIgnored private let defaults: UserDefaults
 
-    var speedUnit: SpeedUnit { didSet { defaults.set(speedUnit.rawValue, forKey: Key.speedUnit) } }
-    var distanceUnit: DistanceUnit { didSet { defaults.set(distanceUnit.rawValue, forKey: Key.distanceUnit) } }
-    var temperatureUnit: TemperatureUnit { didSet { defaults.set(temperatureUnit.rawValue, forKey: Key.temperatureUnit) } }
-    var appearance: AppAppearance { didSet { defaults.set(appearance.rawValue, forKey: Key.appearance) } }
-    var sensorProfile: SensorProfile { didSet { defaults.set(sensorProfile.rawValue, forKey: Key.sensorProfile) } }
+    // `@Observable` turns stored properties into computed ones, which rules out
+    // `didSet`. So each preference is a tracked stored property with a plain
+    // name prefixed by `stored`, wrapped in a computed property that writes the
+    // new value through to `UserDefaults`. Reads and writes both go through the
+    // tracked storage, so SwiftUI still sees every change.
 
-    /// Drag-strip one-foot rollout on distance runs.
-    var rolloutEnabled: Bool { didSet { defaults.set(rolloutEnabled, forKey: Key.rolloutEnabled) } }
-    /// Whether new runs keep their GPS route.
-    var storeRouteData: Bool { didSet { defaults.set(storeRouteData, forKey: Key.storeRoute) } }
-    var hapticsEnabled: Bool {
-        didSet {
-            defaults.set(hapticsEnabled, forKey: Key.haptics)
-            Haptics.isEnabled = hapticsEnabled
+    private var storedSpeedUnit: SpeedUnit
+    var speedUnit: SpeedUnit {
+        get { storedSpeedUnit }
+        set {
+            storedSpeedUnit = newValue
+            defaults.set(newValue.rawValue, forKey: Key.speedUnit)
         }
     }
-    var keepScreenAwake: Bool { didSet { defaults.set(keepScreenAwake, forKey: Key.keepAwake) } }
-    /// Generates data instead of reading the sensors. Always on in the Simulator.
-    var demoMode: Bool { didSet { defaults.set(demoMode, forKey: Key.demoMode) } }
-    var backgroundTracking: Bool { didSet { defaults.set(backgroundTracking, forKey: Key.backgroundTracking) } }
 
-    var selectedVehicleID: UUID? {
-        didSet { defaults.set(selectedVehicleID?.uuidString, forKey: Key.selectedVehicle) }
+    private var storedDistanceUnit: DistanceUnit
+    var distanceUnit: DistanceUnit {
+        get { storedDistanceUnit }
+        set {
+            storedDistanceUnit = newValue
+            defaults.set(newValue.rawValue, forKey: Key.distanceUnit)
+        }
     }
-    var selectedModeID: String { didSet { defaults.set(selectedModeID, forKey: Key.selectedMode) } }
+
+    private var storedTemperatureUnit: TemperatureUnit
+    var temperatureUnit: TemperatureUnit {
+        get { storedTemperatureUnit }
+        set {
+            storedTemperatureUnit = newValue
+            defaults.set(newValue.rawValue, forKey: Key.temperatureUnit)
+        }
+    }
+
+    private var storedAppearance: AppAppearance
+    var appearance: AppAppearance {
+        get { storedAppearance }
+        set {
+            storedAppearance = newValue
+            defaults.set(newValue.rawValue, forKey: Key.appearance)
+        }
+    }
+
+    private var storedSensorProfile: SensorProfile
+    var sensorProfile: SensorProfile {
+        get { storedSensorProfile }
+        set {
+            storedSensorProfile = newValue
+            defaults.set(newValue.rawValue, forKey: Key.sensorProfile)
+        }
+    }
+
+    /// Drag-strip one-foot rollout on distance runs.
+    private var storedRolloutEnabled: Bool
+    var rolloutEnabled: Bool {
+        get { storedRolloutEnabled }
+        set {
+            storedRolloutEnabled = newValue
+            defaults.set(newValue, forKey: Key.rolloutEnabled)
+        }
+    }
+
+    /// Whether new runs keep their GPS route.
+    private var storedStoreRouteData: Bool
+    var storeRouteData: Bool {
+        get { storedStoreRouteData }
+        set {
+            storedStoreRouteData = newValue
+            defaults.set(newValue, forKey: Key.storeRoute)
+        }
+    }
+
+    private var storedHapticsEnabled: Bool
+    var hapticsEnabled: Bool {
+        get { storedHapticsEnabled }
+        set {
+            storedHapticsEnabled = newValue
+            defaults.set(newValue, forKey: Key.haptics)
+            Haptics.isEnabled = newValue
+        }
+    }
+
+    private var storedKeepScreenAwake: Bool
+    var keepScreenAwake: Bool {
+        get { storedKeepScreenAwake }
+        set {
+            storedKeepScreenAwake = newValue
+            defaults.set(newValue, forKey: Key.keepAwake)
+        }
+    }
+
+    /// Generates data instead of reading the sensors. Always on in the Simulator.
+    private var storedDemoMode: Bool
+    var demoMode: Bool {
+        get { storedDemoMode }
+        set {
+            storedDemoMode = newValue
+            defaults.set(newValue, forKey: Key.demoMode)
+        }
+    }
+
+    private var storedBackgroundTracking: Bool
+    var backgroundTracking: Bool {
+        get { storedBackgroundTracking }
+        set {
+            storedBackgroundTracking = newValue
+            defaults.set(newValue, forKey: Key.backgroundTracking)
+        }
+    }
+
+    private var storedSelectedVehicleID: UUID?
+    var selectedVehicleID: UUID? {
+        get { storedSelectedVehicleID }
+        set {
+            storedSelectedVehicleID = newValue
+            defaults.set(newValue?.uuidString, forKey: Key.selectedVehicle)
+        }
+    }
+
+    private var storedSelectedModeID: String
+    var selectedModeID: String {
+        get { storedSelectedModeID }
+        set {
+            storedSelectedModeID = newValue
+            defaults.set(newValue, forKey: Key.selectedMode)
+        }
+    }
+
+    private var storedCustomModes: [RunMode]
     var customModes: [RunMode] {
-        didSet {
-            if let data = try? JSONEncoder().encode(customModes) {
+        get { storedCustomModes }
+        set {
+            storedCustomModes = newValue
+            if let data = try? JSONEncoder().encode(newValue) {
                 defaults.set(data, forKey: Key.customModes)
             }
         }
     }
-    var hasSeededSampleData: Bool { didSet { defaults.set(hasSeededSampleData, forKey: Key.seededSampleData) } }
-    var acceptedDisclaimer: Bool { didSet { defaults.set(acceptedDisclaimer, forKey: Key.acceptedDisclaimer) } }
+
+    private var storedHasSeededSampleData: Bool
+    var hasSeededSampleData: Bool {
+        get { storedHasSeededSampleData }
+        set {
+            storedHasSeededSampleData = newValue
+            defaults.set(newValue, forKey: Key.seededSampleData)
+        }
+    }
+
+    private var storedAcceptedDisclaimer: Bool
+    var acceptedDisclaimer: Bool {
+        get { storedAcceptedDisclaimer }
+        set {
+            storedAcceptedDisclaimer = newValue
+            defaults.set(newValue, forKey: Key.acceptedDisclaimer)
+        }
+    }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
 
-        speedUnit = SpeedUnit(rawValue: defaults.string(forKey: Key.speedUnit) ?? "") ?? .kmh
-        distanceUnit = DistanceUnit(rawValue: defaults.string(forKey: Key.distanceUnit) ?? "") ?? .metric
-        temperatureUnit = TemperatureUnit(rawValue: defaults.string(forKey: Key.temperatureUnit) ?? "") ?? .celsius
-        appearance = AppAppearance(rawValue: defaults.string(forKey: Key.appearance) ?? "") ?? .dark
-        sensorProfile = SensorProfile(rawValue: defaults.string(forKey: Key.sensorProfile) ?? "") ?? .balanced
+        storedSpeedUnit = SpeedUnit(rawValue: defaults.string(forKey: Key.speedUnit) ?? "") ?? .kmh
+        storedDistanceUnit = DistanceUnit(rawValue: defaults.string(forKey: Key.distanceUnit) ?? "") ?? .metric
+        storedTemperatureUnit = TemperatureUnit(rawValue: defaults.string(forKey: Key.temperatureUnit) ?? "") ?? .celsius
+        storedAppearance = AppAppearance(rawValue: defaults.string(forKey: Key.appearance) ?? "") ?? .dark
+        storedSensorProfile = SensorProfile(rawValue: defaults.string(forKey: Key.sensorProfile) ?? "") ?? .balanced
 
-        rolloutEnabled = defaults.object(forKey: Key.rolloutEnabled) as? Bool ?? false
-        storeRouteData = defaults.object(forKey: Key.storeRoute) as? Bool ?? true
-        hapticsEnabled = defaults.object(forKey: Key.haptics) as? Bool ?? true
-        keepScreenAwake = defaults.object(forKey: Key.keepAwake) as? Bool ?? true
-        demoMode = defaults.object(forKey: Key.demoMode) as? Bool ?? false
-        backgroundTracking = defaults.object(forKey: Key.backgroundTracking) as? Bool ?? true
+        storedRolloutEnabled = defaults.object(forKey: Key.rolloutEnabled) as? Bool ?? false
+        storedStoreRouteData = defaults.object(forKey: Key.storeRoute) as? Bool ?? true
+        storedHapticsEnabled = defaults.object(forKey: Key.haptics) as? Bool ?? true
+        storedKeepScreenAwake = defaults.object(forKey: Key.keepAwake) as? Bool ?? true
+        storedDemoMode = defaults.object(forKey: Key.demoMode) as? Bool ?? false
+        storedBackgroundTracking = defaults.object(forKey: Key.backgroundTracking) as? Bool ?? true
 
         if let stored = defaults.string(forKey: Key.selectedVehicle) {
-            selectedVehicleID = UUID(uuidString: stored)
+            storedSelectedVehicleID = UUID(uuidString: stored)
         } else {
-            selectedVehicleID = nil
+            storedSelectedVehicleID = nil
         }
-        selectedModeID = defaults.string(forKey: Key.selectedMode) ?? RunMode.zeroToHundredKmh.id
+        storedSelectedModeID = defaults.string(forKey: Key.selectedMode) ?? RunMode.zeroToHundredKmh.id
 
         if let data = defaults.data(forKey: Key.customModes),
            let decoded = try? JSONDecoder().decode([RunMode].self, from: data) {
-            customModes = decoded
+            storedCustomModes = decoded
         } else {
-            customModes = []
+            storedCustomModes = []
         }
 
-        hasSeededSampleData = defaults.bool(forKey: Key.seededSampleData)
-        acceptedDisclaimer = defaults.bool(forKey: Key.acceptedDisclaimer)
+        storedHasSeededSampleData = defaults.bool(forKey: Key.seededSampleData)
+        storedAcceptedDisclaimer = defaults.bool(forKey: Key.acceptedDisclaimer)
 
-        Haptics.isEnabled = hapticsEnabled
+        Haptics.isEnabled = storedHapticsEnabled
     }
 
     // MARK: - Derived
