@@ -48,6 +48,11 @@ final class PerformanceEngine {
         var rolloutMeters: Double = 0
         /// Telemetry kept before the start line so charts show the launch.
         var leadInSeconds: TimeInterval = 2
+        /// Recording continues for this long after the finish line. The result
+        /// is published immediately and then quietly refined, which is how the
+        /// braking and cornering peaks get captured: on a real run they happen
+        /// just *after* the timing ends, not during it.
+        var postRunSeconds: TimeInterval = 3
         /// Hard cap on buffered samples so a long armed session cannot grow
         /// without bound.
         var maximumBufferedSamples = 20_000
@@ -80,6 +85,9 @@ final class PerformanceEngine {
         case rollingOut
         /// The clock is running.
         case running
+        /// Timing is done and the result has been published, but recording
+        /// continues briefly to catch the braking that follows.
+        case settling
         case finished
         case aborted(AbortReason)
     }
@@ -89,6 +97,8 @@ final class PerformanceEngine {
         case launched(at: TimeInterval)
         case split(Split)
         case finished(PerformanceResult)
+        /// The same result with the post-finish window folded in.
+        case resultRefined(PerformanceResult)
         case aborted(AbortReason)
     }
 
@@ -139,6 +149,8 @@ final class PerformanceEngine {
     private var maxSpeedSinceStart: Double = 0
     private var decelerationSince: TimeInterval?
     private var pendingSplits: [SplitTarget] = []
+    private var finishTime: TimeInterval?
+    private var publishedResult: PerformanceResult?
 
     // MARK: - Init
 
@@ -174,6 +186,8 @@ final class PerformanceEngine {
         decelerationSince = nil
         splits = []
         pendingSplits = []
+        finishTime = nil
+        publishedResult = nil
     }
 
     /// Puts the engine into the waiting state. Nothing is timed until the start
@@ -193,6 +207,10 @@ final class PerformanceEngine {
         case .running, .rollingOut, .armed:
             state = .aborted(.manual)
             return .aborted(.manual)
+        case .settling:
+            // Timing already succeeded; just stop early.
+            state = .finished
+            return nil
         case .idle, .finished, .aborted:
             return nil
         }
@@ -218,7 +236,7 @@ final class PerformanceEngine {
         switch state {
         case .idle, .finished, .aborted:
             return []
-        case .armed, .rollingOut, .running:
+        case .armed, .rollingOut, .running, .settling:
             break
         }
 
@@ -234,6 +252,8 @@ final class PerformanceEngine {
             events.append(contentsOf: advanceRollout(sample))
         case .running:
             events.append(contentsOf: advanceRun(sample))
+        case .settling:
+            events.append(contentsOf: advanceSettling(sample))
         default:
             break
         }
@@ -419,10 +439,60 @@ final class PerformanceEngine {
                 finishDistance: finish.distance,
                 finishSpeed: finish.speed
             )
-            state = .finished
+            finishTime = finish.time
+            publishedResult = result
+            state = configuration.postRunSeconds > 0 ? .settling : .finished
             events.append(.finished(result))
         }
         return events
+    }
+
+    /// After the finish line the run keeps recording for a moment so the chart
+    /// shows the car slowing down and the braking/cornering peaks are real
+    /// numbers rather than zeroes.
+    ///
+    /// Only the braking, lateral and combined maxima and the sample series are
+    /// extended. The time, distance, start/end speed and maximum speed all stay
+    /// exactly as they were measured between the start and finish lines.
+    private func advanceSettling(_ sample: TelemetrySample) -> [Event] {
+        guard let finish = finishTime, let start = startTime, let published = publishedResult else {
+            state = .finished
+            return []
+        }
+        guard sample.t >= finish + configuration.postRunSeconds else { return [] }
+
+        let refined = refine(published, start: start, until: sample.t)
+        publishedResult = refined
+        state = .finished
+        return [.resultRefined(refined)]
+    }
+
+    private func refine(
+        _ result: PerformanceResult,
+        start: TimeInterval,
+        until end: TimeInterval
+    ) -> PerformanceResult {
+        var refined = result
+        var gforce = GForceAccumulator()
+        for sample in buffer where sample.t >= start && sample.t <= end {
+            gforce.ingest(sample.gforce)
+        }
+        refined.maxBrakingG = min(result.maxBrakingG, gforce.maxBraking)
+        if abs(gforce.maxLateral) > abs(result.maxLateralG) {
+            refined.maxLateralG = gforce.maxLateral
+        }
+        refined.maxCombinedG = max(result.maxCombinedG, gforce.maxCombined)
+
+        let leadIn = start - configuration.leadInSeconds
+        refined.samples = buffer
+            .filter { $0.t >= leadIn && $0.t <= end }
+            .map { sample in
+                var point = sample.point
+                point.t = sample.t - start
+                point.distance = sample.distance - startDistance
+                return point
+            }
+        return refined
     }
 
     private func abortReason(for sample: TelemetrySample, startTime: TimeInterval) -> AbortReason? {
