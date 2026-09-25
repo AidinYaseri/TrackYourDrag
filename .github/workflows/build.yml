@@ -81,10 +81,10 @@ jobs:
       # Apple ID, so no Apple Developer account and no secrets in CI.
       #
       # This is a second full compile (arm64 device, Release) on top of the
-      # simulator build above, so it is limited to main and manual runs rather
-      # than every push to every branch.
+      # simulator build above. It runs on every push because macOS runners are
+      # free on a public repository, so every branch produces something
+      # installable without having to merge first.
       - name: Archive for device
-        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         run: |
           set -o pipefail
           xcodebuild archive \
@@ -100,7 +100,6 @@ jobs:
 
       # An .ipa is just a zip with the app inside a Payload directory.
       - name: Package the .ipa
-        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         run: |
           set -euo pipefail
           mkdir -p build/Payload
@@ -109,7 +108,6 @@ jobs:
           ls -lh build/Tracky-unsigned.ipa
 
       - name: Upload the .ipa
-        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: Tracky-unsigned-ipa

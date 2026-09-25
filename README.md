@@ -170,15 +170,14 @@ iPhone the runner actually ships rather than hard-coding one. A second job
 re-runs the icon generator and checks its output is still a 1024px icon with
 no alpha channel.
 
-Documentation-only pushes are skipped, since a macOS runner bills at ten times
-the Linux rate on a private repository. (Public repositories get macOS runners
-free.)
+Documentation-only pushes are skipped: they cannot break a build, and a macOS
+runner is the slow part of the loop.
 
 ### Getting an installable build
 
-On pushes to `main`, and on a manual **Run workflow**, the same job also
-archives a device build and uploads it as an unsigned `.ipa` artifact called
-`Tracky-unsigned-ipa`. Download it from the run's summary page.
+Every build also archives a device build and uploads it as an unsigned `.ipa`
+artifact called `Tracky-unsigned-ipa`. Download it from the run's summary page
+on any branch — there is no need to merge to get something installable.
 
 It is unsigned on purpose. [AltStore](https://altstore.io/) or
 [Sideloadly](https://sideloadly.io/) will resign it with your own Apple ID as
