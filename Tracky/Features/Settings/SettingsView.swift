@@ -407,9 +407,10 @@ struct SettingsView: View {
 
     // MARK: - Building blocks
 
+    // GlassCard stores its content closure, so this one has to escape too.
     private func section<Content: View>(
         title: String,
-        @ViewBuilder content: () -> Content
+        @ViewBuilder content: @escaping () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             SectionHeader(title: title)

@@ -76,6 +76,46 @@ jobs:
           path: TestResults.xcresult
           if-no-files-found: ignore
 
+      # A device build, packaged as an unsigned .ipa. Signing happens later, on
+      # the way onto the phone: AltStore or Sideloadly resign it with your own
+      # Apple ID, so no Apple Developer account and no secrets in CI.
+      #
+      # This is a second full compile (arm64 device, Release) on top of the
+      # simulator build above, so it is limited to main and manual runs rather
+      # than every push to every branch.
+      - name: Archive for device
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project Tracky.xcodeproj \
+            -scheme Tracky \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath build/Tracky.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS=""
+
+      # An .ipa is just a zip with the app inside a Payload directory.
+      - name: Package the .ipa
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+          mkdir -p build/Payload
+          cp -R build/Tracky.xcarchive/Products/Applications/Tracky.app build/Payload/
+          (cd build && zip -qry Tracky-unsigned.ipa Payload)
+          ls -lh build/Tracky-unsigned.ipa
+
+      - name: Upload the .ipa
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Tracky-unsigned-ipa
+          path: build/Tracky-unsigned.ipa
+          if-no-files-found: error
+
   icon:
     name: Icon generator
     runs-on: ubuntu-latest

@@ -171,7 +171,21 @@ re-runs the icon generator and checks its output is still a 1024px icon with
 no alpha channel.
 
 Documentation-only pushes are skipped, since a macOS runner bills at ten times
-the Linux rate.
+the Linux rate on a private repository. (Public repositories get macOS runners
+free.)
+
+### Getting an installable build
+
+On pushes to `main`, and on a manual **Run workflow**, the same job also
+archives a device build and uploads it as an unsigned `.ipa` artifact called
+`Tracky-unsigned-ipa`. Download it from the run's summary page.
+
+It is unsigned on purpose. [AltStore](https://altstore.io/) or
+[Sideloadly](https://sideloadly.io/) will resign it with your own Apple ID as
+they install it, so no Apple Developer account and no signing secrets in CI are
+needed. A free Apple ID signs for seven days at a time and allows three
+sideloaded apps at once; AltStore can refresh it over Wi-Fi before it expires.
+A paid account raises that to a year and unlocks TestFlight.
 
 The suite covers interpolation and threshold crossings, the engine against
 constant-acceleration physics (0–100 km/h, quarter mile, trap speed, rolling
