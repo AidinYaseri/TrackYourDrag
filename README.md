@@ -160,8 +160,18 @@ spec if you would rather regenerate the project from scratch.
 ## Tests
 
 ```
-xcodebuild test -scheme Tracky -destination 'platform=iOS Simulator,name=iPhone 15'
+xcodebuild test -scheme Tracky -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
+
+`.github/workflows/build.yml` compiles the app and runs the test suite on a
+macOS runner on every code push, to any branch. The compile step targets a
+generic destination so it needs no simulator; the test step picks whichever
+iPhone the runner actually ships rather than hard-coding one. A second job
+re-runs the icon generator and checks its output is still a 1024px icon with
+no alpha channel.
+
+Documentation-only pushes are skipped, since a macOS runner bills at ten times
+the Linux rate.
 
 The suite covers interpolation and threshold crossings, the engine against
 constant-acceleration physics (0–100 km/h, quarter mile, trap speed, rolling

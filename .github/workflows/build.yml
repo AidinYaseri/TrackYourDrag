@@ -1,0 +1,94 @@
+name: Build
+
+# Every code push, on every branch. Documentation-only pushes are skipped:
+# a macOS runner costs ten times a Linux one, and a typo fix in the README
+# cannot break the build.
+on:
+  push:
+    paths-ignore:
+      - '**/*.md'
+      - 'Docs/**'
+  workflow_dispatch:
+
+# A newer push to the same branch makes the in-flight run pointless.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Compile and test
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          xcode-select -p
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i iphonesimulator || true
+
+      # Compiling for a generic destination needs no simulator to be chosen or
+      # booted, so "does it build" is answered as early and as cheaply as
+      # possible, and a broken runner image cannot disguise itself as a
+      # compile error.
+      - name: Compile
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project Tracky.xcodeproj \
+            -scheme Tracky \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      # Tests need a real simulator. Runner images change which devices they
+      # ship, so the device is chosen at run time rather than hard-coded.
+      - name: Pick a simulator
+        id: simulator
+        run: |
+          set -euo pipefail
+          udid=$(xcrun simctl list devices available --json | python3 Tools/pick_simulator.py)
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
+      - name: Test
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project Tracky.xcodeproj \
+            -scheme Tracky \
+            -configuration Debug \
+            -destination "id=${{ steps.simulator.outputs.udid }}" \
+            -resultBundlePath TestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TestResults
+          path: TestResults.xcresult
+          if-no-files-found: ignore
+
+  icon:
+    name: Icon generator
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The icon is committed, but the generator is the source of truth for it.
+      # This checks the script still runs and still produces something iOS will
+      # accept, without asserting byte-identical output across machines.
+      - name: Regenerate the app icon
+        run: python3 Tools/generate_app_icon.py
+
+      - name: Validate the app icon
+        run: python3 Tools/check_app_icon.py
